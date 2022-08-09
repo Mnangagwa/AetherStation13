@@ -10,6 +10,7 @@
 	RegisterSignal(parent, COMSIG_RIDDEN_DRIVER_MOVE, .proc/driver_move)
 
 /datum/component/riding/vehicle/driver_move(atom/movable/movable_parent, mob/living/user, direction)
+	message_admins("driver move")
 	if(!COOLDOWN_FINISHED(src, vehicle_move_cooldown))
 		return COMPONENT_DRIVER_BLOCK_MOVE
 	var/obj/vehicle/vehicle_parent = parent
@@ -60,6 +61,7 @@
 
 /// This handles the actual movement for vehicles once [/datum/component/riding/vehicle/proc/driver_move] has given us the green light
 /datum/component/riding/vehicle/proc/handle_ride(mob/user, direction)
+	message_admins("handle ride")
 	var/atom/movable/movable_parent = parent
 
 	var/turf/next = get_step(movable_parent, direction)

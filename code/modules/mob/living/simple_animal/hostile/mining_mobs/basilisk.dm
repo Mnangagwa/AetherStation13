@@ -210,3 +210,204 @@
 
 /mob/living/simple_animal/hostile/asteroid/basilisk/watcher/tendril
 	fromtendril = TRUE
+
+
+/mob/living/simple_animal/hostile/asteroid/slugrocket
+	name = "slugrocket"
+	desc = "A slugrocket."
+	icon = 'icons/mob/alienqueen.dmi'
+	icon_state = "cyberslug"
+	icon_living = "cyberslug"
+	icon_aggro = "cyberslug"
+	icon_dead = "cyberslug"
+	icon_gib = "syndicate_gib"
+	mob_biotypes = MOB_ORGANIC|MOB_BEAST
+	move_to_delay = 70
+	projectiletype = /obj/projectile/beam/laser
+	projectilesound = 'sound/weapons/pierce.ogg'
+	ranged = 1
+	ranged_message = "targets"
+	ranged_cooldown_time = 70
+	throw_message = "does nothing against the hard shell of"
+	vision_range = 5
+	speed = 1
+	maxHealth = 500
+	health = 500
+	harm_intent_damage = 20
+	obj_damage = 60
+	melee_damage_lower = 20
+	melee_damage_upper = 20
+	attack_verb_continuous = "bites into"
+	attack_verb_simple = "bite into"
+	speak_emote = list("chitters")
+	attack_sound = 'sound/weapons/bladeslice.ogg'
+	attack_vis_effect = ATTACK_EFFECT_BITE
+	aggro_vision_range = 9
+	turns_per_move = 10
+	var/artillery_ready = TRUE
+	var/arming = FALSE
+	var/timerid
+	var/current_ammo_type = /obj/structure/closet/supplypod/acidpod,
+	var/ammo_list = list(/obj/structure/closet/supplypod/missilepod,
+						 /obj/structure/closet/supplypod/shrapnelpod,
+						 /obj/structure/closet/supplypod/acidpod)
+/obj/structure/closet/crate/slugga
+
+/obj/structure/closet/crate/slugga/open(mob/living/user, force = FALSE)
+	. = ..()
+	new /mob/living/simple_animal/hostile/asteroid/slugrocket (get_turf(src))
+
+/mob/living/simple_animal/hostile/asteroid/slugrocket/GiveTarget(new_target)
+	if(..()) //we have a target
+		if(isliving(target))
+			try_fire_artillery(target)
+
+
+/mob/living/simple_animal/hostile/asteroid/slugrocket/proc/rearm_artillery()
+	if(arming)
+		return
+	visible_message(span_warning("[src] is rearming the artillery rockets"))
+	timerid = addtimer(CALLBACK(src, .proc/ready_arty), 5 SECONDS, TIMER_STOPPABLE | TIMER_LOOP )
+	current_ammo_type = pick(ammo_list)
+	arming = TRUE
+
+/mob/living/simple_animal/hostile/asteroid/slugrocket/proc/ready_arty()
+	artillery_ready = TRUE
+	arming = FALSE
+
+/mob/living/simple_animal/hostile/asteroid/slugrocket/proc/fire_artillery(target)
+	new /obj/effect/pod_landingzone(get_turf(target), current_ammo_type, 50)
+	artillery_ready = FALSE
+	deltimer(timerid)
+	var/datum/effect_system/smoke_spread/smoke = new
+	smoke.set_up(0, src)
+	smoke.start()
+
+
+/mob/living/simple_animal/hostile/asteroid/slugrocket/proc/try_fire_artillery(mob/living/target)
+	if(!artillery_ready)
+		rearm_artillery()
+		return
+	fire_artillery(target)
+
+/obj/structure/closet/supplypod/missilepod
+	effectMissile = TRUE
+	damage = 50
+	explosionSize = list(0,0,3,4)
+	style = STYLE_MISSILE
+
+/obj/structure/closet/supplypod/shrapnelpod
+	effectMissile = TRUE
+	effectShrapnel = TRUE
+	style = STYLE_MISSILE
+
+/obj/structure/closet/supplypod/acidpod
+	effectShrapnel = TRUE
+	effectMissile = TRUE
+	shrapnel_type = /obj/projectile/acid
+	shrapnel_magnitude = 1
+	style = STYLE_RED_MISSILE
+
+
+/obj/projectile/acid
+	name = "acid bolt"
+	icon_state = "neurotoxin"
+	damage = 5
+	damage_type = BURN
+	nodamage = TRUE
+	flag = ENERGY
+	impact_effect_type = /obj/effect/temp_visual/impact_effect/neurotoxin
+
+/obj/projectile/acid/Initialize(mapload, param_color)
+	. = ..()
+	create_reagents(500, NO_REACT)
+	reagents.add_reagent(/datum/reagent/toxin/acid/fluacid, 500)
+
+/obj/projectile/acid/on_hit(atom/target, blocked = FALSE)
+	..()
+	var/datum/effect_system/smoke_spread/chem/smoke_machine/s = new
+	s.set_up(reagents, 1, 24, loc)
+	s.start()
+	return BULLET_ACT_HIT
+
+/obj/structure/closet/crate/bobba
+
+/obj/structure/closet/crate/bobba/open(mob/living/user, force = FALSE)
+	. = ..()
+	new /mob/living/simple_animal/hostile/asteroid/bobbyworm (get_turf(src))
+
+
+/mob/living/simple_animal/hostile/asteroid/bobbyworm
+	name = "bobbyworm"
+	desc = "A bobbyworm."
+	icon = 'icons/turf/floors/lava.dmi'
+	icon_state = "bobbitworm"
+	icon_living = "bobbitworm"
+	icon_aggro = "bobbitworm"
+	icon_dead = "bobbitworm"
+	icon_gib = "bobbitworm"
+	mob_biotypes = MOB_ORGANIC|MOB_BEAST
+	move_to_delay = 0
+	projectiletype = /obj/projectile/temp/basilisk
+	projectilesound = 'sound/weapons/pierce.ogg'
+	ranged = 1
+	ranged_message = "stares"
+	ranged_cooldown_time = 30
+	throw_message = "does nothing against the hard shell of"
+	vision_range = 2
+	speed = 3
+	maxHealth = 200
+	health = 200
+	harm_intent_damage = 25
+	obj_damage = 20
+	melee_damage_lower = 25
+	melee_damage_upper = 25
+	attack_verb_continuous = "bites into"
+	attack_verb_simple = "bite into"
+	speak_emote = list("chitters")
+	attack_sound = 'sound/weapons/bladeslice.ogg'
+	attack_vis_effect = ATTACK_EFFECT_BITE
+	aggro_vision_range = 5
+	turns_per_move = 1
+	var/is_underwater = FALSE
+
+/mob/living/simple_animal/hostile/asteroid/bobbyworm/proc/go_down()
+	icon_state = "bobbitworm_underwater"
+	icon_living = "bobbitworm_underwater"
+	icon_aggro = "bobbitworm_underwater"
+	icon_dead = "bobbitworm_underwater"
+	icon_gib = "bobbitworm_underwater"
+	ranged = 0
+	is_underwater = TRUE
+	move_to_delay = 5
+
+
+/mob/living/simple_animal/hostile/asteroid/bobbyworm/proc/go_up()
+	icon_state = "bobbitworm"
+	icon_living = "bobbitworm"
+	icon_aggro = "bobbitworm"
+	icon_dead = "bobbitworm"
+	icon_gib = "bobbitworm"
+	ranged = 1
+	is_underwater = FALSE
+	move_to_delay = 0
+
+/mob/living/simple_animal/hostile/asteroid/bobbyworm/GiveTarget(new_target)
+	if(is_underwater)
+		return
+	..()
+
+
+/mob/living/simple_animal/hostile/asteroid/bobbyworm/Life()
+	if(prob(20))
+		if(is_underwater)
+			go_up()
+		else
+			go_down()
+	var/x = get_turf(src)
+	if(!istype(x, /turf/open/acid/smooth))
+		gib()
+
+/mob/living/simple_animal/hostile/asteroid/bobbyworm/Move(x, anydir)
+	if(istype(x, /turf/open/acid/smooth))
+		return..()

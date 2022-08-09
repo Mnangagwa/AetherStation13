@@ -195,3 +195,255 @@
 
 /turf/open/lava/smooth/airless
 	initial_gas_mix = AIRLESS_ATMOS
+
+
+
+
+/turf/open/acid
+	name = "acid"
+	icon_state = "acid"
+	gender = PLURAL //"That's some acid."
+	baseturfs = /turf/open/acid//acid all the way down
+	slowdown = 5
+
+	light_range = 2
+	light_power = 0.75
+	light_color = LIGHT_COLOR_LAVA
+	bullet_bounce_sound = 'sound/items/welder2.ogg'
+
+	footstep = FOOTSTEP_LAVA
+	barefootstep = FOOTSTEP_LAVA
+	clawfootstep = FOOTSTEP_LAVA
+	heavyfootstep = FOOTSTEP_LAVA
+
+/turf/open/acid/ex_act(severity, target)
+	contents_explosion(severity, target)
+
+/turf/open/acid/MakeSlippery(wet_setting, min_wet_time, wet_time_to_add, max_wet_time, permanent)
+	return
+
+/turf/open/acid/Melt()
+	to_be_destroyed = FALSE
+	return src
+
+/turf/open/acid/acid_act(acidpwr, acid_volume)
+	return FALSE
+
+/turf/open/acid/MakeDry(wet_setting = TURF_WET_WATER)
+	return
+
+/turf/open/acid/airless
+	initial_gas_mix = AIRLESS_ATMOS
+
+/turf/open/acid/Entered(atom/movable/arrived, atom/old_loc, list/atom/old_locs)
+	if(melt_stuff(arrived))
+		START_PROCESSING(SSobj, src)
+
+/turf/open/acid/Exited(atom/movable/gone, direction)
+	. = ..()
+
+/turf/open/acid/hitby(atom/movable/AM, skipcatch, hitpush, blocked, datum/thrownthing/throwingdatum)
+	if(melt_stuff(AM))
+		START_PROCESSING(SSobj, src)
+
+/turf/open/acid/process(delta_time)
+	if(!melt_stuff(null, delta_time))
+		STOP_PROCESSING(SSobj, src)
+
+/turf/open/acid/rcd_vals(mob/user, obj/item/construction/rcd/the_rcd)
+	switch(the_rcd.mode)
+		if(RCD_FLOORWALL)
+			return list("mode" = RCD_FLOORWALL, "delay" = 0, "cost" = 3)
+	return FALSE
+
+/turf/open/acid/rcd_act(mob/user, obj/item/construction/rcd/the_rcd, passed_mode)
+	switch(passed_mode)
+		if(RCD_FLOORWALL)
+			to_chat(user, span_notice("You build a floor."))
+			PlaceOnTop(/turf/open/floor/plating, flags = CHANGETURF_INHERIT_AIR)
+			return TRUE
+	return FALSE
+
+/turf/open/acid/singularity_act()
+	return
+
+/turf/open/acid/singularity_pull(S, current_size)
+	return
+
+/turf/open/acid/get_smooth_underlay_icon(mutable_appearance/underlay_appearance, turf/asking_turf, adjacency_dir)
+	underlay_appearance.icon = 'icons/turf/floors.dmi'
+	underlay_appearance.icon_state = "basalt"
+	return TRUE
+
+/turf/open/acid/GetHeatCapacity()
+	. = 700
+
+/turf/open/acid/GetTemperature()
+	. = 200
+
+/turf/open/acid/TakeTemperature(temp)
+
+/turf/open/acid/attackby(obj/item/C, mob/user, params)
+	..()
+	if(istype(C, /obj/item/stack/rods))
+		var/obj/item/stack/rods/R = C
+		var/obj/structure/lattice/H = locate(/obj/structure/lattice, src)
+		if(H)
+			to_chat(user, span_warning("There is already a lattice here!"))
+			return
+		if(R.use(1))
+			to_chat(user, span_notice("You construct a lattice."))
+			playsound(src, 'sound/weapons/genhit.ogg', 50, TRUE)
+			new /obj/structure/lattice(locate(x, y, z))
+		else
+			to_chat(user, span_warning("You need one rod to build a heatproof lattice."))
+		return
+
+/turf/open/acid/proc/is_safe()
+	//if anything matching this typecache is found in the acid, we don't burn things
+	var/static/list/acid_safeties_typecache = typecacheof(list(/obj/structure/lattice/catwalk, /obj/structure/stone_tile, /obj/structure/lattice))
+	var/list/found_safeties = typecache_filter_list(contents, acid_safeties_typecache)
+	for(var/obj/structure/stone_tile/S in found_safeties)
+		if(S.fallen)
+			LAZYREMOVE(found_safeties, S)
+	return LAZYLEN(found_safeties)
+
+
+/turf/open/acid/proc/melt_stuff(AM, delta_time = 1)
+	. = 0
+
+	if(is_safe())
+		return FALSE
+
+	var/thing_to_check = src
+	if (AM)
+		thing_to_check = list(AM)
+	for(var/thing in thing_to_check)
+		if(isobj(thing))
+			var/obj/O = thing
+			if((O.resistance_flags & (ACID_PROOF|INDESTRUCTIBLE)) || O.throwing)
+				continue
+			. = 1
+			if((O.resistance_flags & (ON_FIRE)))
+				continue
+			if(O.resistance_flags & ACID_PROOF)
+				O.resistance_flags &= ~ACID_PROOF
+			if(O.armor.acid > 50) //obj with 100% acid armor still get slowly burned away.
+				O.armor = O.armor.setRating(fire = 50)
+			O.acid_act(500, 10)
+			if(istype(O, /obj/structure/closet))
+				var/obj/structure/closet/C = O
+				for(var/I in C.contents)
+					melt_stuff(I)
+		else if (isliving(thing))
+			. = 1
+			var/mob/living/L = thing
+			if(L.movement_type & FLYING)
+				continue //YOU'RE FLYING OVER IT
+			var/buckle_check = L.buckled
+			if(isobj(buckle_check))
+				var/obj/O = buckle_check
+				if(O.resistance_flags & ACID_PROOF)
+					continue
+			else if(isliving(buckle_check))
+				var/mob/living/live = buckle_check
+				if(WEATHER_LAVA in live.weather_immunities)
+					continue
+			///add acid lover check with acid trait XXXXXXXXXXXXXXXXXXXXXXXXXXX
+			if(iscarbon(L))
+				var/mob/living/carbon/C = L
+				var/obj/item/clothing/S = C.get_item_by_slot(ITEM_SLOT_OCLOTHING)
+				var/obj/item/clothing/H = C.get_item_by_slot(ITEM_SLOT_HEAD)
+
+			//	if(S && H && S.clothing_flags & ACID_PROOF && H.clothing_flags & ACID_PROOF)
+				if(!S || !H)
+					L.adjustFireLoss(25 * delta_time)
+				if(S && !(S.clothing_flags & ACID_PROOF))
+					S.acid_act(500, 10)
+					L.adjustFireLoss(5 * delta_time)
+				if(H && !(H.clothing_flags & ACID_PROOF))
+					S.acid_act(500, 10)
+					L.adjustFireLoss(5 * delta_time)
+
+/turf/open/acid/smooth
+	name = "acid"
+	baseturfs = /turf/open/acid/smooth
+	icon = 'icons/turf/floors/lava.dmi'
+	icon_state = "acid-255"
+	base_icon_state = "acid"
+	smoothing_flags = SMOOTH_BITMASK | SMOOTH_BORDER
+	smoothing_groups = list(SMOOTH_GROUP_TURF_OPEN, SMOOTH_GROUP_FLOOR_LAVA)
+	canSmoothWith = list(SMOOTH_GROUP_FLOOR_LAVA)
+
+/turf/open/acid/smooth/acid_land_surface
+	initial_gas_mix = LAVALAND_DEFAULT_ATMOS
+	planetary_atmos = TRUE
+	baseturfs = /turf/open/acid/smooth/acid_land_surface
+
+/turf/open/acid/smooth/airless
+	initial_gas_mix = AIRLESS_ATMOS
+
+/obj/item/acid_staff
+	name = "staff of lava"
+	desc = "The ability to fill the emergency shuttle with lava. What more could you want out of life?"
+	icon_state = "staffofstorms"
+	inhand_icon_state = "staffofstorms"
+	lefthand_file = 'icons/mob/inhands/weapons/staves_lefthand.dmi'
+	righthand_file = 'icons/mob/inhands/weapons/staves_righthand.dmi'
+	icon = 'icons/obj/guns/magic.dmi'
+	slot_flags = ITEM_SLOT_BACK
+	w_class = WEIGHT_CLASS_BULKY
+	force = 25
+	damtype = BURN
+	resistance_flags = LAVA_PROOF | FIRE_PROOF | ACID_PROOF
+	hitsound = 'sound/weapons/sear.ogg'
+	var/turf_type = /turf/open/acid/smooth
+	var/transform_string = "lava"
+	var/reset_turf_type = /turf/open/floor/plating/asteroid/basalt
+	var/reset_string = "basalt"
+	var/create_cooldown = 10
+	var/create_delay = 10
+	var/reset_cooldown = 10
+	var/timer = 0
+	var/static/list/banned_turfs = typecacheof(list(/turf/open/space/transit, /turf/closed))
+
+/obj/item/acid_staff/afterattack(atom/target, mob/user, proximity_flag, click_parameters)
+	. = ..()
+	if(timer > world.time)
+		return
+
+	if(is_type_in_typecache(target, banned_turfs))
+		return
+
+	if(target in view(user.client.view, get_turf(user)))
+
+		var/turf/open/T = get_turf(target)
+		if(!istype(T))
+			return
+		if(!istype(T, turf_type))
+			var/obj/effect/temp_visual/lavastaff/L = new /obj/effect/temp_visual/lavastaff(T)
+			L.alpha = 0
+			animate(L, alpha = 255, time = create_delay)
+			user.visible_message(span_danger("[user] points [src] at [T]!"))
+			timer = world.time + create_delay + 1
+			if(do_after(user, create_delay, target = T))
+				var/old_name = T.name
+				if(T.TerraformTurf(turf_type, flags = CHANGETURF_INHERIT_AIR))
+					user.visible_message(span_danger("[user] turns \the [old_name] into [transform_string]!"))
+					message_admins("[ADMIN_LOOKUPFLW(user)] fired the lava staff at [ADMIN_VERBOSEJMP(T)]")
+					log_game("[key_name(user)] fired the lava staff at [AREACOORD(T)].")
+					timer = world.time + create_cooldown
+					playsound(T,'sound/magic/fireball.ogg', 200, TRUE)
+			else
+				timer = world.time
+			qdel(L)
+		else
+			var/old_name = T.name
+			if(T.TerraformTurf(reset_turf_type, flags = CHANGETURF_INHERIT_AIR))
+				user.visible_message(span_danger("[user] turns \the [old_name] into [reset_string]!"))
+				timer = world.time + reset_cooldown
+				playsound(T,'sound/magic/fireball.ogg', 200, TRUE)
+
+/obj/effect/temp_visual/lavastaff
+	icon_state = "lavastaff_warn"
+	duration = 51
